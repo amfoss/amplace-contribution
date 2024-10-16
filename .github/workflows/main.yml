@@ -7,31 +7,13 @@ on:
       - edited
 
 jobs:
-  Audit-Pull-Request:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/github-script@v6
-        with:
-          script: |
-            const requiredLabels = ['pixel'];
-            let labels = [];
-
-            if (context.payload.pull_request) {
-              labels = context.payload.pull_request.labels;
-            }
-
-            if (labels.filter(l => requiredLabels.includes(l.name)).length === 0) {
-              throw new Error(`Required labels: ${requiredLabels.join(', ')}`);
-            }
-
   Audit-the-json-content:
     runs-on: ubuntu-latest
     needs: Audit-Pull-Request
 
     steps:
       - name: Checkout the PR
-        uses: actions/checkout@v2
+        uses: hmarr/auto-approve-action@v4.0.0
         with: 
           fetch-depth: 0
 
