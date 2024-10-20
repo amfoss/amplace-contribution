@@ -70,3 +70,23 @@ jobs:
       - name: Pass the diff and file content to Python validation
         run: |
           python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.pr_user }}
+
+  auto-merge:
+    needs: Audit-the-json-content
+    runs-on: ubuntu-latest
+    if: success() && github.event.pull_request.head.repo.full_name == github.repository  # Merge only if tests succeed and not from a fork
+
+    steps:
+      - name: Auto-merge the PR
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+
+          echo "Merging PR #$PR_NUMBER in repo $REPO..."
+          
+          curl -s -X PUT \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"merge_method":"squash"}' \
+            "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            && echo "PR successfully merged."
