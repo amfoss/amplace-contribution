@@ -14,6 +14,8 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    outputs:
+      PR_AUTHOR: ${{ steps.pr_user.outputs.PR_AUTHOR }}
 
     steps:
       - name: Check if PR is from a fork
@@ -118,7 +120,7 @@ jobs:
 
       - name: Create branch
         run: |
-          git checkout -b ${{ steps.pr_user.outputs.PR_AUTHOR }}
-          git push --set-upstream origin ${{ steps.pr_user.outputs.PR_AUTHOR }}
+          git checkout -b ${{ needs.audit.outputs.PR_AUTHOR }}
+          git push --set-upstream origin ${{ needs.audit.outputs.PR_AUTHOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
