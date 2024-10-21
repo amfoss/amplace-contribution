@@ -27,7 +27,7 @@ jobs:
             echo "::set-output name=is_fork::false"
           fi
 
-      - name: Checkout the base branch
+      - name: Checkout the base branch (PR target)
         uses: actions/checkout@v2
         with:
           repository: ${{ github.repository }}
@@ -46,36 +46,37 @@ jobs:
           echo "The PR was created by $PR_USER"
           echo "::set-output name=pr_user::$PR_USER"
 
+      - name: Fetch the PR branch from fork
+        run: |
+          git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
+          git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
+
       - name: Create a new branch with the PR author username
         id: create_branch
         run: |
-          REPO=${{ github.repository }}
           PR_USER=${{ steps.pr_user.outputs.pr_user }}
-          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
-
-          # Check if a branch with the username already exists
           BRANCH_NAME=$PR_USER
           COUNT=1
-          while git ls-remote --exit-code --heads "https://github.com/${REPO}.git" "refs/heads/$BRANCH_NAME"; do
+
+          # Check if a branch with the username already exists in the base repo
+          while git ls-remote --exit-code --heads origin "refs/heads/$BRANCH_NAME"; do
             COUNT=$((COUNT+1))
             BRANCH_NAME="${PR_USER}${COUNT}"
           done
-          echo "::set-output name=branch_name::$BRANCH_NAME"
 
-          # Create a new branch from the base branch
+          echo "::set-output name=branch_name::$BRANCH_NAME"
+          
+          # Create the new branch from the base branch
           git checkout -b "$BRANCH_NAME"
 
-      - name: Merge the PR's changes into the new branch
+      - name: Merge the PR branch into the new branch
         run: |
-          PR_HEAD=${{ github.event.pull_request.head.sha }}
           BRANCH_NAME=${{ steps.create_branch.outputs.branch_name }}
+          git merge --no-ff pr-branch
 
-          # Merge the PR's HEAD commit into the new branch
-          git merge --no-ff $PR_HEAD
-
-      - name: Push the new branch to the repository using the PAT
+      - name: Push the new branch to the repository
         run: |
           BRANCH_NAME=${{ steps.create_branch.outputs.branch_name }}
           git push https://$PAT_TOKEN@github.com/${{ github.repository }} "$BRANCH_NAME"
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }} # Reference the PAT token secret here
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
