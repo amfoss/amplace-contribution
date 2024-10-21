@@ -113,9 +113,12 @@ jobs:
     needs: audit
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Create branch
-        uses: peterjgrainger/action-create-branch@v2.2.0
-        with:
-          branch: "$PR_AUTHOR"
+        run: |
+          git checkout -b "$PR_AUTHOR"
+          git push --set-upstream origin "$PR_AUTHOR"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
