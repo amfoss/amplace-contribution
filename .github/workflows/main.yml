@@ -1,4 +1,4 @@
-name: PR check
+name: PR Check and Merge
 
 on:
   pull_request:
@@ -12,10 +12,11 @@ permissions:
   contents: write
 
 jobs:
-  Audit-the-json-content:
+  audit-and-merge:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Check if the PR is from a fork
       - name: Check if PR is from a fork
         id: pr_source
         run: |
@@ -27,18 +28,51 @@ jobs:
             echo "::set-output name=is_fork::false"
           fi
 
-      - name: Checkout the base branch (PR target)
+      # Step 2: Checkout the base branch (target branch)
+      - name: Checkout base branch
         uses: actions/checkout@v2
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
 
-      - name: Set up Git identity
+      # Step 3: Get the list of changed files using GitHub API
+      - name: Get the changed files
+        id: changes
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          echo "Fetching changed files from GitHub API..."
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+          echo "Fetching files changed in PR #$PR_NUMBER"
+          
+          # Call the GitHub API to get the list of changed files
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}/files" \
+               | jq -r '.[].filename' > changes.txt
 
+          echo "Changed files:"
+          cat changes.txt
+
+      # Step 4: Validate that only 'pixel_update.json' was modified
+      - name: Validate pixel_update.json
+        run: |
+          CHANGED_FILES=$(cat changes.txt)
+          TOTAL_FILES=$(echo "$CHANGED_FILES" | wc -l)
+
+          # Check if only 'pixel_update.json' was modified
+          if [[ "$TOTAL_FILES" -eq 1 ]] && [[ "$CHANGED_FILES" == "pixel_update.json" ]]; then
+            echo "Only pixel_update.json was modified. Proceeding with validation..."
+          else
+            echo "Error: Changes found in files other than pixel_update.json. Failing the PR."
+            exit 1
+          fi
+
+      # Step 5: Save the content of changed file (pixel_update.json)
+      - name: Save the content of changed file
+        run: |
+          cat pixel_update.json > changed_file_content.txt
+
+      # Step 6: Get the PR author username
       - name: Get the PR author username
         id: pr_user
         run: |
@@ -46,19 +80,20 @@ jobs:
           echo "The PR was created by $PR_USER"
           echo "::set-output name=pr_user::$PR_USER"
 
-      - name: Fetch the PR branch from fork
+      # Step 7: Perform Python validation
+      - name: Pass the diff and file content to Python validation
         run: |
-          git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
-          git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
+          python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.pr_user }}
 
-      - name: Create a new branch with the PR author username
-        id: create_branch
+      # Step 8: Create a new branch and merge even if the PR is from a fork
+      - name: Create a new branch and merge the PR
+        id: create_branch_and_merge
         run: |
           PR_USER=${{ steps.pr_user.outputs.pr_user }}
           BRANCH_NAME=$PR_USER
           COUNT=1
 
-          # Check if a branch with the username already exists in the base repo
+          # Check if a branch with the username already exists
           while git ls-remote --exit-code --heads origin "refs/heads/$BRANCH_NAME"; do
             COUNT=$((COUNT+1))
             BRANCH_NAME="${PR_USER}${COUNT}"
@@ -68,15 +103,18 @@ jobs:
           
           # Create the new branch from the base branch
           git checkout -b "$BRANCH_NAME"
+          
+          # Fetch the PR branch from the fork
+          git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
+          git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
 
-      - name: Merge the PR branch into the new branch
-        run: |
-          BRANCH_NAME=${{ steps.create_branch.outputs.branch_name }}
+          # Merge the PR branch into the new branch
           git merge --no-ff pr-branch
 
+      # Step 9: Push the new branch to the repository
       - name: Push the new branch to the repository
         run: |
-          BRANCH_NAME=${{ steps.create_branch.outputs.branch_name }}
+          BRANCH_NAME=${{ steps.create_branch_and_merge.outputs.branch_name }}
           git push https://$PAT_TOKEN@github.com/${{ github.repository }} "$BRANCH_NAME"
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
