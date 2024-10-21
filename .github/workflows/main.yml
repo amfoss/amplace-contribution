@@ -73,12 +73,11 @@ jobs:
         id: pr_user
         run: |
           echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
-          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
-          echo "The PR was created by $PR_AUTHOR"
+          echo "The PR was created by {{ steps.pr_user.outputs.PR_AUTHOR }}"
 
       - name: Pass the diff and file content to Python validation
         run: |
-          python validate_pixel_update.py changes.txt changed_file_content.txt "$PR_AUTHOR"
+          python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.PR_AUTHOR }}
 
       # - name: Create a new branch and merge the PR
       #   id: create_branch_and_merge
