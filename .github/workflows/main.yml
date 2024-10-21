@@ -119,6 +119,4 @@ jobs:
       - name: Push the new branch to the repository
         run: |
           BRANCH_NAME=${{ steps.create_branch_and_merge.outputs.branch_name }}
-          git push https://$PAT_TOKEN@github.com/${{ github.repository }} "$BRANCH_NAME"
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} "$BRANCH_NAME"
