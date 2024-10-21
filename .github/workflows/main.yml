@@ -124,6 +124,6 @@ jobs:
           git push --set-upstream origin ${{ needs.audit.outputs.PR_AUTHOR }}
 
       - name: Merge PR
-        run: gh pr edit -B ${{ needs.audit.outputs.PR_AUTHOR }}
+        run: gh pr edit ${{ github.event.number }} --base ${{ needs.audit.outputs.PR_AUTHOR }} 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
