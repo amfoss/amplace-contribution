@@ -28,7 +28,7 @@ jobs:
             echo "::set-output name=is_fork::false"
           fi
 
-      # Step 2: Checkout the base branch (target branch)
+      # Step 2: Checkout base branch (target branch)
       - name: Checkout base branch
         uses: actions/checkout@v2
         with:
@@ -85,7 +85,7 @@ jobs:
         run: |
           python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.pr_user }}
 
-      # Step 8: Create a new branch and merge even if the PR is from a fork
+      # Step 8: Create a new branch and merge the PR
       - name: Create a new branch and merge the PR
         id: create_branch_and_merge
         run: |
@@ -108,6 +108,10 @@ jobs:
           git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
           git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
 
+          # Set committer identity to avoid "unknown identity" error
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          
           # Merge the PR branch into the new branch
           git merge --no-ff pr-branch
 
