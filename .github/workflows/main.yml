@@ -14,6 +14,8 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    outputs:
+      PR_AUTHOR: ${{ steps.pr_user.outputs.PR_AUTHOR }}
 
     steps:
       - name: Check if PR is from a fork
@@ -70,8 +72,8 @@ jobs:
       - name: Get the PR author username
         id: pr_user
         run: |
-          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
-          echo "The PR was created by $PR_AUTHOR"
+          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          echo "The PR was created by ${{ steps.pr_user.outputs.PR_AUTHOR }}"
 
       - name: Pass the diff and file content to Python validation
         run: |
@@ -113,9 +115,12 @@ jobs:
     needs: audit
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Create branch
-        uses: peterjgrainger/action-create-branch@v2.2.0
-        with:
-          branch: "$PR_AUTHOR"
+        run: |
+          git checkout -b ${{ needs.audit.outputs.PR_AUTHOR }}
+          git push --set-upstream origin ${{ needs.audit.outputs.PR_AUTHOR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
