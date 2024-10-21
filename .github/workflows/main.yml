@@ -73,11 +73,12 @@ jobs:
         id: pr_user
         run: |
           echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
-          echo "The PR was created by ${{ steps.pr_user.outputs.PR_AUTHOR }}"
+          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
+          echo "The PR was created by $PR_AUTHOR"
 
       - name: Pass the diff and file content to Python validation
         run: |
-          python validate_pixel_update.py changes.txt changed_file_content.txt "${{ steps.pr_user.outputs.PR_AUTHOR }}"
+          python validate_pixel_update.py changes.txt changed_file_content.txt "$PR_AUTHOR"
 
       # - name: Create a new branch and merge the PR
       #   id: create_branch_and_merge
@@ -118,10 +119,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Create branch
+      - name: Create branch if not exists
         run: |
-          git checkout -b ${{ needs.audit.outputs.PR_AUTHOR }}
-          git push --set-upstream origin ${{ needs.audit.outputs.PR_AUTHOR }}
+          branch_name=${{ needs.audit.outputs.PR_AUTHOR }}
+          if git ls-remote --heads origin $branch_name | grep -sw $branch_name; then
+            echo "Branch $branch_name already exists. Checking out..."
+            git checkout $branch_name
+          else
+            echo "Branch $branch_name does not exist. Creating new branch..."
+            git checkout -b $branch_name
+            git push --set-upstream origin $branch_name
+          fi
 
       - name: Merge PR
         run: gh pr edit ${{ github.event.number }} --base ${{ needs.audit.outputs.PR_AUTHOR }} 
