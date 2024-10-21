@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  audit-and-merge:
+  audit:
     runs-on: ubuntu-latest
 
     steps:
@@ -70,44 +70,53 @@ jobs:
       - name: Get the PR author username
         id: pr_user
         run: |
-          PR_USER=${{ github.event.pull_request.user.login }}
+          echo "PR_AUTHOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_ENV
           echo "The PR was created by $PR_USER"
-          echo "::set-output name=pr_user::$PR_USER"
 
       - name: Pass the diff and file content to Python validation
         run: |
           python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.pr_user }}
 
-      - name: Create a new branch and merge the PR
-        id: create_branch_and_merge
-        run: |
-          PR_USER=${{ steps.pr_user.outputs.pr_user }}
-          BRANCH_NAME=$PR_USER
-          COUNT=1
-
-          # Check if a branch with the username already exists
-          while git ls-remote --exit-code --heads origin "refs/heads/$BRANCH_NAME"; do
-            COUNT=$((COUNT+1))
-            BRANCH_NAME="${PR_USER}${COUNT}"
-          done
-
-          echo "::set-output name=branch_name::$BRANCH_NAME"
-          
-          # Create the new branch from the base branch
-          git checkout -b "$BRANCH_NAME"
-          
-          # Fetch the PR branch from the fork
-          git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
-          git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
-
-          # Set committer identity to avoid "unknown identity" error
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
-          
-          # Merge the PR branch into the new branch
-          git merge --no-ff pr-branch
-
-      - name: Push the new branch to the repository
-        run: |
-          BRANCH_NAME=${{ steps.create_branch_and_merge.outputs.branch_name }}
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} "$BRANCH_NAME"
+      # - name: Create a new branch and merge the PR
+      #   id: create_branch_and_merge
+      #   run: |
+      #     PR_USER=${{ steps.pr_user.outputs.pr_user }}
+      #     BRANCH_NAME=$PR_USER
+      #     COUNT=1
+      #
+      #     # Check if a branch with the username already exists
+      #     while git ls-remote --exit-code --heads origin "refs/heads/$BRANCH_NAME"; do
+      #       COUNT=$((COUNT+1))
+      #       BRANCH_NAME="${PR_USER}${COUNT}"
+      #     done
+      #
+      #     echo "::set-output name=branch_name::$BRANCH_NAME"
+      #     
+      #     # Create the new branch from the base branch
+      #     git checkout -b "$BRANCH_NAME"
+      #     
+      #     # Fetch the PR branch from the fork
+      #     git remote add fork https://github.com/${{ github.event.pull_request.head.repo.full_name }}.git
+      #     git fetch fork ${{ github.event.pull_request.head.ref }}:pr-branch
+      #
+      #     # Set committer identity to avoid "unknown identity" error
+      #     git config user.name "GitHub Action"
+      #     git config user.email "action@github.com"
+      #     
+      #     # Merge the PR branch into the new branch
+      #     git merge --no-ff pr-branch
+      #
+      # - name: Push the new branch to the repository
+      #   run: |
+      #     BRANCH_NAME=${{ steps.create_branch_and_merge.outputs.branch_name }}
+      #     git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} "$BRANCH_NAME"
+  auto_merge_pr:
+    needs: audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create branch
+        uses: peterjgrainger/action-create-branch@v2.2.0
+        with:
+          branch: "$PR_AUTHOR"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
