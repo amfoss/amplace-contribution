@@ -34,6 +34,11 @@ jobs:
           ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
 
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
       - name: Get the PR author username
         id: pr_user
         run: |
@@ -68,7 +73,9 @@ jobs:
           # Merge the PR's HEAD commit into the new branch
           git merge --no-ff $PR_HEAD
 
-      - name: Push the new branch to the repository
+      - name: Push the new branch to the repository using the PAT
         run: |
           BRANCH_NAME=${{ steps.create_branch.outputs.branch_name }}
-          git push origin "$BRANCH_NAME"
+          git push https://$PAT_TOKEN@github.com/${{ github.repository }} "$BRANCH_NAME"
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }} # Reference the PAT token secret here
