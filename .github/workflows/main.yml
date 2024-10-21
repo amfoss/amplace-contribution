@@ -6,9 +6,11 @@ on:
       - opened
       - edited
       - synchronize
+      - closed  
+
 permissions:
   pull-requests: write
-
+  contents: write 
 
 jobs:
   Audit-the-json-content:
@@ -74,9 +76,9 @@ jobs:
       - name: Pass the diff and file content to Python validation
         run: |
           python validate_pixel_update.py changes.txt changed_file_content.txt ${{ steps.pr_user.outputs.pr_user }}
-      
+
       - name: Close PR on failure
-        if: failure() # This will only run if any of the previous steps fail
+        if: failure() 
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           REPO=${{ github.repository }}
@@ -86,4 +88,32 @@ jobs:
           curl -X PATCH -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"state":"closed"}' \
             "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}"
-            
+
+      - name: Automatically merge PR into a new branch after successful checks
+        if: success() 
+        id: create_and_merge_branch
+        run: |
+          REPO=${{ github.repository }}
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_USER=${{ steps.pr_user.outputs.pr_user }}
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+
+          # Check if a branch with the username already exists
+          BRANCH_NAME=$PR_USER
+          COUNT=1
+          while git ls-remote --exit-code --heads "https://github.com/${REPO}.git" "refs/heads/$BRANCH_NAME"; do
+            COUNT=$((COUNT+1))
+            BRANCH_NAME="${PR_USER}${COUNT}"
+          done
+
+          # Create a new branch from the base branch
+          git checkout $BASE_BRANCH
+          git checkout -b "$BRANCH_NAME"
+
+          # Push the new branch to the repository
+          git push origin "$BRANCH_NAME"
+
+          # Merge the PR into the new branch
+          curl -X POST -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"base":"'"$BRANCH_NAME"'","head":"refs/pull/'"$PR_NUMBER"'/head"}' \
+            "https://api.github.com/repos/${REPO}/merges"
