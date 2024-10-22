@@ -1,28 +1,10 @@
-[
-  {
-    "x": "69",
-    "y": "7",
-    "rgb": "#f70606"
-  },
-  {
-    "x": "70",
-    "y": "7",
-    "rgb": "#f50808"
-  },
-  {
-    "x": "71",
-    "y": "8",
-    "rgb": "#f11010"
-  },
-  {
-    "x": "72",
-    "y": "9",
-    "rgb": "#db2727"
-  },
-  {
-    "x": "68",
-    "y": "5",
-    "rgb": "#f10303"
-  }
-  
-]
+{
+  "canvas_size": [7, 7],
+  "pixels": [
+    {"x": 2, "y": 2, "color": [169, 169, 169]},  // gray pixel (mouse's head)
+    {"x": 3, "y": 2, "color": [169, 169, 169]},  // gray pixel (mouse's head)
+    {"x": 1, "y": 3, "color": [169, 169, 169]},  // gray pixel (mouse's body)
+    {"x": 2, "y": 3, "color": [169, 169, 169]},  // gray pixel (mouse's body)
+    {"x": 3, "y": 3, "color": [0, 0, 0]}        // black pixel (mouse's eye)
+  ]
+}
